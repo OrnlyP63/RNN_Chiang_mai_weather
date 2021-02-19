@@ -1,0 +1,7 @@
+11/2/2564
+EDA data Encode Y condition.
+18/2/2564
+https://www.mikulskibartosz.name/how-to-turn-pandas-data-frame-into-time-series-input-for-rnn/
+https://gist.github.com/peachman05/7f500c081aa2ce10109eea2925de4ea4
+fill nall w/ ffill
+reshap #row and time.
