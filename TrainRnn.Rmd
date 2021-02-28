@@ -1,0 +1,285 @@
+---
+jupyter:
+  jupytext:
+    text_representation:
+      extension: .Rmd
+      format_name: rmarkdown
+      format_version: '1.2'
+      jupytext_version: 1.10.2
+  kernelspec:
+    display_name: Python 3
+    language: python
+    name: python3
+---
+
+```{python}
+import pandas as pd
+import numpy as np
+```
+
+### EDA
+
+```{python}
+df = pd.read_csv("mueang-chiang-mai weather.csv")
+```
+
+```{python}
+df.head()
+```
+
+```{python}
+df.keys()
+```
+
+```{python}
+df['year'].value_counts()
+```
+
+```{python}
+df['Temperature'].value_counts()
+```
+
+```{python}
+df['Dew Point'].value_counts()
+```
+
+```{python}
+df['Humidity'].value_counts()
+```
+
+```{python}
+df['Wind'].value_counts()
+```
+
+```{python}
+df['Wind Speed'].value_counts()
+```
+
+```{python}
+df['Pressure'].value_counts()
+```
+
+```{python}
+df['Wind Gust'].value_counts()
+```
+
+```{python}
+df['Precip Accum'].value_counts()
+```
+
+```{python}
+df['Temperature'].plot()
+```
+
+```{python}
+df['Dew Point'].plot()
+```
+
+```{python}
+df['Humidity'].plot()
+```
+
+```{python}
+df['Wind Speed'].plot()
+```
+
+```{python}
+df['Pressure'].plot()
+```
+
+### Clean
+
+```{python}
+df = df.drop(['year', 'Time', 'day', 'Wind Gust', 'Precip.', 'Precip Accum'], axis=1)
+```
+
+```{python}
+Wind = df.pop('Wind')
+```
+
+```{python}
+month = df.pop('month')
+```
+
+```{python}
+y = df.pop('Condition')
+```
+
+```{python}
+df
+```
+
+```{python}
+from sklearn.preprocessing import MinMaxScaler
+```
+
+```{python}
+scaler = MinMaxScaler()
+```
+
+```{python}
+df.loc[:,:] = scaler.fit_transform(df)
+```
+
+```{python}
+df
+```
+
+```{python}
+month = pd.get_dummies(month,prefix='month')
+```
+
+```{python}
+month.head()
+```
+
+```{python}
+Wind = Wind.fillna(method = 'ffill')
+```
+
+```{python}
+Wind = pd.get_dummies(Wind, prefix='wind')
+```
+
+```{python}
+Wind
+```
+
+```{python}
+X = pd.concat([df, month, Wind], axis=1)
+```
+
+```{python}
+X.head()
+```
+
+```{python}
+L = list(y.str.split('/'))
+K = []
+for i in L:
+    K.extend(i)
+```
+
+```{python}
+Condition = list(set(K))
+```
+
+```{python}
+Y = pd.DataFrame()
+for c in Condition:
+    Y[c] = y.str.contains(c)*1
+```
+
+```{python}
+Y.head()
+```
+
+```{python}
+def gen_index(start, stop, step, n_frames):
+    X = []
+    Y = []
+    for i in range(start, stop+step, step):
+        sample = [ i+j*step for j in range(n_frames) ]
+        X.append(sample)
+        Y.append(i+n_frames*step)
+        
+    return X, Y
+```
+
+```{python}
+index_x, index_y = gen_index(1,52096-6,1,5)
+```
+
+```{python}
+index_x[-1]
+```
+
+```{python}
+index_y[-1]
+```
+
+```{python}
+X.columns
+```
+
+```{python}
+L = []
+for c in X.columns:
+    l = []
+    for i in index_x:
+        a = X[c].iloc[i].values
+        l.append(a)
+    L.append(np.array(l))
+```
+
+```{python}
+np.array(L).shape
+```
+
+```{python}
+r = np.hstack(L)
+```
+
+```{python}
+r.shape
+```
+
+```{python}
+X = r.reshape(52090, 35, 5).transpose(0, 2, 1)
+```
+
+```{python}
+X.shape
+```
+
+```{python}
+X = X.astype(np.int32)
+```
+
+```{python}
+Y = Y.iloc[index_y]
+Y = Y.values.astype(np.int32)
+```
+
+```{python}
+Y.shape
+```
+
+### Train
+
+```{python}
+from tensorflow.keras.layers import Dense, SimpleRNN, Dropout, LSTM
+from tensorflow.keras import Sequential
+from sklearn.model_selection import train_test_split
+```
+
+```{python}
+X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size=0.3)
+```
+
+```{python}
+n_frames = 5
+n_features = 35
+```
+
+```{python}
+model = Sequential()
+model.add(LSTM(128, input_shape=(n_frames, n_features), return_sequences=False))
+model.add(Dense(64, activation='relu') )
+model.add(Dense(64, activation='relu') )
+model.add(Dense(31) ) # output
+model.compile(loss='mse', optimizer='adam',
+             metrics=['accuracy'],
+             )
+```
+
+```{python}
+model.fit(X_train, Y_train,
+          validation_data=(X_test,Y_test),
+          batch_size=32,
+          verbose=2, epochs=50)
+```
+
+```{python}
+
+```
